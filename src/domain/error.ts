@@ -5,6 +5,7 @@ import { PathReporter } from "io-ts/PathReporter";
 export enum ErrorType {
   Generic,
   Validation,
+  NotFound,
 }
 export type AppError = { type: ErrorType; msg?: string };
 
@@ -19,6 +20,8 @@ export const error = (type: ErrorType, msg = "error"): AppError => ({
 });
 
 export const genericError = (msg: string) => error(ErrorType.Generic, msg);
+export const notFound = (msg: string = "not found") =>
+  error(ErrorType.NotFound, msg);
 
 export const fromValidationErrors = (errors: Errors): AppError => ({
   type: ErrorType.Validation,

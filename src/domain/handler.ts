@@ -1,12 +1,13 @@
-import { Handler, NextFunction } from "express";
-import { isLeft } from "fp-ts/lib/Either";
-import { pipe } from "fp-ts/lib/function";
-import { Action } from "./action";
 import {
+  Handler,
+  NextFunction,
   Request as ExpressRequest,
   Response as ExpressResponse,
 } from "express";
+import { isRight } from "fp-ts/lib/Either";
 import { RedisApi } from "../service/redis";
+import { Action } from "./action";
+import { ErrorType } from "./error";
 
 export type HandlerContext = {
   req: ExpressRequest;
@@ -23,7 +24,14 @@ export const contextActionHandler =
     return async (req, res, next) => {
       const task = action({ req, res, next, redis });
       const result = await task();
-      if (isLeft(result)) return res.status(500).send(result.left);
-      return res.status(200).send(result.right);
+      if (isRight(result)) return res.status(200).send(result.right);
+      switch (result.left.type) {
+        case ErrorType.NotFound:
+          return res.status(404).send(result.left);
+        case ErrorType.Validation:
+          return res.status(406).send(result.left);
+        default:
+          return res.status(500).send(result.left);
+      }
     };
   };

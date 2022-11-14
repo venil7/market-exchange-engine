@@ -5,7 +5,7 @@ import * as t from "io-ts";
 import { createClient } from "redis";
 import { Action, ActionResult, fromDecoder } from "../domain/action";
 import { Env } from "../domain/env";
-import { fromJsError, genericError } from "../domain/error";
+import { fromJsError, notFound } from "../domain/error";
 
 type RedisClient = ReturnType<typeof createClient>;
 export type RedisApi = {
@@ -36,7 +36,7 @@ const fromClient = (client: RedisClient): RedisApi => {
       (key: string) => {
         return pipe(
           TE.tryCatch(() => client.get(key), fromJsError),
-          TE.chain(TE.fromNullable(genericError(`Record not found`))),
+          TE.chain(TE.fromNullable(notFound(`Record not found`))),
           TE.chain(fromDecoder(decoder))
         );
       },
