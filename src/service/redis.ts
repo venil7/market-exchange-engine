@@ -14,6 +14,9 @@ export type RedisApi = {
   get: <T extends {}>(
     decoder: t.Type<T, string, string>
   ) => (key: string) => ActionResult<T>;
+  enqueue: <T extends {}>(
+    decoder: t.Type<T, string, string>
+  ) => (key: string, obj: T) => ActionResult<T>;
 };
 
 const fromClient = (client: RedisClient): RedisApi => {
@@ -37,6 +40,18 @@ const fromClient = (client: RedisClient): RedisApi => {
           TE.tryCatch(() => client.get(key), fromJsError),
           TE.chain(TE.fromNullable(notFound(`Record not found`))),
           TE.chain(fromDecoder(decoder))
+        );
+      },
+
+    enqueue:
+      <T extends {}>(decoder: t.Type<T, string, string>) =>
+      (queueName: string, obj: T) => {
+        return pipe(
+          TE.of(decoder.encode(obj)),
+          TE.chain((val) =>
+            TE.tryCatch(() => client.lPush(queueName, val), fromJsError)
+          ),
+          TE.map(() => obj)
         );
       },
   };

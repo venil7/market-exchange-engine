@@ -27,6 +27,20 @@ const orderGetAction: Action<HandlerContext, Order> = ({
     )
   );
 
+const orderPushAction: Action<HandlerContext, Order> = ({
+  redis,
+  req,
+  env,
+}: HandlerContext) =>
+  pipe(
+    req.body,
+    decodeOrder,
+    TE.map(withId),
+    TE.chain((order) =>
+      redis.enqueue(OrderFromStringDecoder)(`${env.pair}/orders`, order)
+    )
+  );
+
 const orderPostAction: Action<HandlerContext, Order> = ({
   redis,
   req,
@@ -43,8 +57,10 @@ const orderPostAction: Action<HandlerContext, Order> = ({
 
 const orderGetHandler = contextActionHandler(orderGetAction);
 const orderPostHandler = contextActionHandler(orderPostAction);
+const orderPushHandler = contextActionHandler(orderPushAction);
 
 export const ApiEndpoint = (appCtx: AppContext) =>
   express()
     .get(`/order/${appCtx.env.pair}/:id`, orderGetHandler(appCtx))
-    .post(`/order/${appCtx.env.pair}`, orderPostHandler(appCtx));
+    .post(`/order/${appCtx.env.pair}`, orderPostHandler(appCtx))
+    .post(`/orders/${appCtx.env.pair}`, orderPushHandler(appCtx));
