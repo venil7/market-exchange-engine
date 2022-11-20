@@ -7,31 +7,44 @@ import {
   OrderFromStringDecoder,
 } from "../decoder/order";
 import { Action } from "../domain/action";
-import { contextActionHandler, HandlerContext } from "../domain/handler";
+import {
+  AppContext,
+  contextActionHandler,
+  HandlerContext,
+} from "../domain/handler";
 import { Order, withId } from "../domain/order";
-import { RedisApi } from "../service/redis";
 
-const orderGetAction: Action<HandlerContext, Order> = (ctx: HandlerContext) =>
+const orderGetAction: Action<HandlerContext, Order> = ({
+  redis,
+  req,
+  env,
+}: HandlerContext) =>
   pipe(
-    ctx.req.params["id"],
+    req.params["id"],
     decodeOrderId,
-    TE.chain((id) => ctx.redis.get(OrderFromStringDecoder)(`order/${id}`))
+    TE.chain((id) =>
+      redis.get(OrderFromStringDecoder)(`${env.pair}/order/${id}`)
+    )
   );
 
-const orderPostAction: Action<HandlerContext, Order> = (ctx: HandlerContext) =>
+const orderPostAction: Action<HandlerContext, Order> = ({
+  redis,
+  req,
+  env,
+}: HandlerContext) =>
   pipe(
-    ctx.req.body,
+    req.body,
     decodeOrder,
     TE.map(withId),
     TE.chain((order) =>
-      ctx.redis.set(OrderFromStringDecoder)(`order/${order.id}`, order)
+      redis.set(OrderFromStringDecoder)(`${env.pair}/order/${order.id}`, order)
     )
   );
 
 const orderGetHandler = contextActionHandler(orderGetAction);
 const orderPostHandler = contextActionHandler(orderPostAction);
 
-export const ApiEndpoint = (redis: RedisApi) =>
+export const ApiEndpoint = (appCtx: AppContext) =>
   express()
-    .get("/order/:id", orderGetHandler(redis))
-    .post("/order", orderPostHandler(redis));
+    .get(`/order/${appCtx.env.pair}/:id`, orderGetHandler(appCtx))
+    .post(`/order/${appCtx.env.pair}`, orderPostHandler(appCtx));

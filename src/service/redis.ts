@@ -1,9 +1,8 @@
 import { pipe } from "fp-ts/lib/function";
-import * as RTE from "fp-ts/lib/ReaderTaskEither";
 import * as TE from "fp-ts/lib/TaskEither";
 import * as t from "io-ts";
 import { createClient } from "redis";
-import { Action, ActionResult, fromDecoder } from "../domain/action";
+import { ActionResult, fromDecoder } from "../domain/action";
 import { Env } from "../domain/env";
 import { fromJsError, notFound } from "../domain/error";
 
@@ -43,17 +42,14 @@ const fromClient = (client: RedisClient): RedisApi => {
   };
 };
 
-const connect = (client: RedisClient): Action<Env, RedisClient> => {
+const connect = (client: RedisClient): ActionResult<RedisClient> => {
   return pipe(
     TE.tryCatch(() => client.connect(), fromJsError),
-    TE.map(() => client),
-    RTE.fromTaskEither
+    TE.map(() => client)
   );
 };
 
-export const createGetRedisApi = (): Action<Env, RedisApi> =>
-  pipe(
-    RTE.asks((env: Env) => createClient({ url: env.redis })),
-    RTE.chain(connect),
-    RTE.map(fromClient)
-  );
+export const createGetRedisApi = (env: Env): ActionResult<RedisApi> => {
+  const client = createClient({ url: env.redis });
+  return pipe(TE.of(client), TE.chain(connect), TE.map(fromClient));
+};

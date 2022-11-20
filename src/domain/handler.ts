@@ -7,22 +7,27 @@ import {
 import { isRight } from "fp-ts/lib/Either";
 import { RedisApi } from "../service/redis";
 import { Action } from "./action";
+import { Env } from "./env";
 import { ErrorType } from "./error";
+
+export type AppContext = {
+  redis: RedisApi;
+  env: Env;
+};
 
 export type HandlerContext = {
   req: ExpressRequest;
   res: ExpressResponse;
   next?: NextFunction;
-  redis: RedisApi;
-};
+} & AppContext;
 
 export type HandlerAction<T> = Action<HandlerContext, T>;
 
 export const contextActionHandler =
   <T>(action: HandlerAction<T>) =>
-  (redis: RedisApi): Handler => {
+  (ctx: AppContext): Handler => {
     return async (req, res, next) => {
-      const task = action({ req, res, next, redis });
+      const task = action({ req, res, next, ...ctx });
       const result = await task();
       if (isRight(result)) return res.status(200).send(result.right);
       switch (result.left.type) {

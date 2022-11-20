@@ -15,13 +15,18 @@ const trySync = <A>(func: Lazy<A>) =>
   TE.tryCatch(async () => func(), fromJsError);
 
 await pipe(
-  createGetEnv("./conf.json"),
-  TE.chain(createGetRedisApi()),
-  TE.bindTo("redis"),
-  TE.bind("app", () => TE.of(express().use(bodyParser.json()))),
-  TE.map(({ app, redis }) => app.use("/api", ApiEndpoint(redis))),
-  TE.chain((app) =>
-    trySync(() => app.listen(PORT, () => console.log(`listening: ${PORT}`)))
+  TE.Do,
+  TE.bind("env", () => createGetEnv("./conf.json")),
+  TE.bind("redis", ({ env }) => createGetRedisApi(env)),
+  TE.map(({ redis, env }) =>
+    express().use(bodyParser.json()).use("/api", ApiEndpoint({ redis, env }))
   ),
-  TE.chain((server) => trySync(() => ((global.server = server), server)))
+  TE.chain((app) =>
+    trySync(
+      () =>
+        (global.server = app.listen(PORT, () =>
+          console.log(`listening port: ${PORT}, ${new Date()}`)
+        ))
+    )
+  )
 )();
